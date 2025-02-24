@@ -1,0 +1,6 @@
+{
+    // ...existing settings...
+    "python.defaultInterpreterPath": "C:/path/to/python.exe",  // set to your interpreter
+    "python.analysis.useLibraryCodeForTypes": true
+    // ...existing settings...
+}
