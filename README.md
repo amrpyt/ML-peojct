@@ -1,168 +1,163 @@
 # Air Quality Analysis Project
 
-This project implements comprehensive air quality analysis using deep learning models. It includes data preprocessing, model training, optimization, and temperature/humidity prediction.
+## Latest Updates
+- Added hybrid CNN-LSTM and CNN-BiLSTM models for improved efficiency
+- Implemented comprehensive model efficiency metrics
+- Added performance comparison and optimization tools
+- Enhanced model size reduction techniques
+
+## Overview
+
+This project implements a comprehensive air quality analysis system using deep learning models, with a focus on efficient hybrid architectures and optimized performance.
+
+## Key Features
+
+### Models
+- Standard architectures (1DCNN, RNN, LSTM, BiLSTM)
+- Hybrid architectures:
+  - CNN-LSTM (lightweight feature extraction)
+  - CNN-BiLSTM (enhanced temporal processing)
+
+### Efficiency Metrics
+- Memory usage tracking
+- Inference time measurement
+- Model size optimization
+- Performance/resource trade-offs
+
+## Project Structure
+
+```
+├── src/                          # Source code
+│   ├── 01_data_preprocessing.ipynb    # Data preparation
+│   ├── 02_model_definitions.ipynb     # Model architectures
+│   ├── 03_model_training.ipynb        # Training pipeline
+│   ├── model_metrics.ipynb            # Efficiency analysis
+│   ├── 04_model_optimization.ipynb    # Model optimization
+│   ├── 05_temp_hum_prediction.ipynb   # Additional predictions
+│   ├── 06_visualization.ipynb         # Results visualization
+│   ├── utils.py                       # Utility functions
+│   ├── test_updates.py               # Validation tests
+│   └── README.md                     # Detailed documentation
+├── models/                       # Saved models
+├── logs/                        # Training logs
+├── results/                     # Analysis results
+└── preprocessed/                # Processed data
+```
+
+## Requirements
+
+```bash
+pip install -r requirements.txt
+```
+
+Key dependencies:
+- TensorFlow >= 2.16.0
+- NumPy >= 1.20.0
+- Pandas >= 1.3.0
+- Scikit-learn >= 1.0.0
+- Psutil >= 5.8.0 (for memory tracking)
 
 ## Quick Start
 
 ### Windows:
 ```batch
-# Setup environment
-src\setup_env.bat
-
-# Activate environment
-.venv\Scripts\activate.bat
+src\run_analysis.bat
 ```
 
 ### Linux/macOS:
 ```bash
-# Make script executable
-chmod +x src/setup_env.sh
-
-# Setup environment
-./src/setup_env.sh
-
-# Activate environment
-source .venv/bin/activate
+chmod +x src/run_analysis.sh
+./src/run_analysis.sh
 ```
 
-## Requirements
+The script will:
+1. Set up the environment
+2. Run validation tests
+3. Process notebooks
+4. Generate final analysis
 
-### Python Version
-- Python 3.8 or higher required
-- Python 3.9+ recommended for best TensorFlow compatibility
+## Model Performance
 
-### Hardware Requirements
-- CPU: Any x86-64 processor
-- RAM: 8GB minimum, 16GB recommended
-- GPU: NVIDIA GPU (optional but recommended)
-  - CUDA compatible for GPU acceleration
-  - 4GB VRAM minimum
+Hybrid models are designed for efficiency:
 
-### Software Dependencies
-Core packages (installed automatically):
-```
-numpy>=1.20.0
-pandas>=1.3.0
-scikit-learn>=1.0.0
-tensorflow>=2.16.0  # CPU or GPU version based on hardware
-matplotlib>=3.4.0
-seaborn>=0.11.0
-imbalanced-learn>=0.8.0
-jupyter>=1.0.0
-h5py>=3.10.0
-```
+1. CNN-LSTM:
+   - Reduced parameter count
+   - Efficient feature extraction
+   - Balanced memory usage
 
-## Project Structure
+2. CNN-BiLSTM:
+   - Enhanced feature capture
+   - Optimized architecture
+   - Resource-efficient processing
 
-```
-├── src/
-│   ├── air_quality_analysis.ipynb    # Main analysis notebook
-│   ├── temperature_humidity_prediction.ipynb  # Prediction models
-│   ├── visualization_final.ipynb     # Visualizations
-│   ├── combine_notebooks.py         # Notebook combination script
-│   ├── setup.py                    # Environment setup script
-│   ├── setup_env.bat              # Windows environment setup
-│   ├── setup_env.sh               # Unix environment setup
-│   └── data.csv                    # Dataset
-├── models/                         # Saved models
-├── logs/                          # Training logs
-└── results/                       # Analysis results
-```
+## Efficiency Metrics
 
-## Features
+The project now tracks:
+- Memory usage per model
+- Inference time
+- Model size
+- Efficiency scores
 
-1. Data Preprocessing:
-   - Outlier detection and handling
-   - Feature normalization
-   - Class balancing using SMOTE
+## Results Analysis
 
-2. Deep Learning Models:
-   - 1D Convolutional Neural Network (1DCNN)
-   - Recurrent Neural Network (RNN)
-   - Deep Neural Network (DNN)
-   - Long Short-Term Memory (LSTM)
-   - Bidirectional LSTM (BiLSTM)
+Check the following files:
+- `results/model_metrics.pkl`: Detailed performance data
+- `results/model_comparison.csv`: Model comparisons
+- `logs/`: Training history and resource usage
 
-3. Model Optimization:
-   - TensorFlow Lite conversion
-   - Float16 quantization
-   - Size optimization
+## Optimization Features
 
-4. Additional Analysis:
-   - Temperature prediction
-   - Humidity prediction
-   - Performance metrics (MSE, RMSE, R², MAE)
+1. Model Size Reduction:
+   - Architecture optimization
+   - Weight quantization
+   - Tensor compression
 
-## Troubleshooting
+2. Memory Optimization:
+   - Efficient data loading
+   - Memory monitoring
+   - Resource cleanup
 
-### TensorFlow Installation Issues
-
-1. "No matching distribution found for tensorflow":
-   ```bash
-   # Try installing CPU-only version
-   pip install tensorflow-cpu>=2.16.0
-   ```
-
-2. GPU-related errors:
-   ```bash
-   # Check GPU visibility
-   python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
-   ```
-
-3. Memory errors:
-   - Reduce batch size in notebooks
-   - Enable memory growth (automatic in setup)
-   - Clear session between models (implemented)
-
-### Environment Setup Issues
-
-1. Virtual Environment Errors:
-   ```bash
-   # Windows
-   python -m venv --clear .venv
-   
-   # Linux/macOS
-   python3 -m venv --clear .venv
-   ```
-
-2. Package Conflicts:
-   ```bash
-   # Clean installation
-   pip uninstall tensorflow tensorflow-cpu -y
-   pip install tensorflow>=2.16.0
-   ```
-
-3. Jupyter Notebook Issues:
-   ```bash
-   # Install IPython kernel
-   python -m ipykernel install --user --name=air_quality_env
-   ```
-
-## Running the Analysis
-
-1. Setup environment (if not done):
-   ```bash
-   # Windows
-   src\setup_env.bat
-   
-   # Linux/macOS
-   ./src/setup_env.sh
-   ```
-
-2. Generate final notebook:
-   ```bash
-   python src/combine_notebooks.py
-   ```
-
-3. Start Jupyter:
-   ```bash
-   jupyter notebook src/final_air_quality_analysis.ipynb
-   ```
+3. Speed Optimization:
+   - Batch size tuning
+   - GPU utilization
+   - Inference optimization
 
 ## Contributing
 
-Feel free to submit issues, fork the repository, and create pull requests for any improvements.
+1. Fork the repository
+2. Create a feature branch
+3. Add tests
+4. Submit pull request
+
+## Testing
+
+Run the test suite:
+```bash
+python src/test_updates.py
+```
+
+## Troubleshooting
+
+1. Memory Issues:
+   ```bash
+   # Check GPU memory
+   nvidia-smi
+   
+   # Monitor process memory
+   top -p $(pgrep python)
+   ```
+
+2. Performance Issues:
+   - Adjust batch size in notebooks
+   - Enable memory growth
+   - Monitor resource usage
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- TensorFlow team for optimization tools
+- scikit-learn for preprocessing utilities
+- NVIDIA for GPU support
