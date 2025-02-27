@@ -1,140 +1,86 @@
+import os
 import pandas as pd
-from data_preprocessing import DataPreprocessor
-from models import ModelBuilder
-from model_optimizer import ModelOptimizer
-from visualization import Visualizer
-import tensorflow as tf
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report
 
-def train_evaluate_model(model, X_train, X_test, y_train, y_test, epochs=50):
-    """
-    Train and evaluate a model
-    """
-    history = model.fit(
-        X_train, y_train,
-        epochs=epochs,
-        validation_split=0.2,
-        batch_size=32,
-        verbose=1
-    )
-
-    y_pred = model.predict(X_test)
-    if len(y_pred.shape) > 1:
-        y_pred = np.argmax(y_pred, axis=1)
-
-    metrics = {
-        'accuracy': accuracy_score(y_test, y_pred),
-        'precision': precision_score(y_test, y_pred, average='weighted'),
-        'recall': recall_score(y_test, y_pred, average='weighted'),
-        'f1': f1_score(y_test, y_pred, average='weighted')
-    }
-
-    return model, history, metrics
+# Import project modules
+from config import DATA_PATH, MODEL_SAVE_PATH, RESULTS_PATH
+from utils import create_directories, plot_training_history, save_model_summary
+from preprocess import preprocess_pipeline
+from models import build_and_train_all_models
+from evaluate import evaluate_all_models
+from optimize import optimize_model
+from predict import evaluate_optimized_model, predict_with_best_model
 
 def main():
-    # Load data
-    df = pd.read_csv('data.csv')
-
-    # Initialize preprocessor
-    preprocessor = DataPreprocessor()
-
-    # Prepare data
-    X_train, X_test, y_train, y_test = preprocessor.prepare_data(df)
-
-    # Get indices for regression data
-    train_size = int(len(df) * 0.8)
-    train_indices = np.arange(train_size)
-    test_indices = np.arange(train_size, len(df))
-
-    # Initialize model builder
-    model_builder = ModelBuilder()
-
-    # Train different models
-    models = {
-        'DNN': model_builder.build_dnn(X_train.shape[1:], 6),
-        'CNN': model_builder.build_cnn((X_train.shape[1], 1), 6),
-        'LSTM': model_builder.build_lstm((X_train.shape[1], 1), 6),
-        'BiLSTM': model_builder.build_bilstm((X_train.shape[1], 1), 6)
-    }
-
-    # Train and evaluate each model
-    results = {}
-    for name, model in models.items():
-        print(f"\nTraining {name}...")
-        model, history, metrics = train_evaluate_model(
-            model, X_train, X_test, y_train, y_test
-        )
-        results[name] = {
-            'model': model,
-            'history': history,
-            'metrics': metrics
-        }
-        
-        # Visualize training
-        viz = Visualizer()
-        viz.plot_training_history(history, title=f'{name} Training History')
-        
-    # Select best model based on accuracy
-    best_model_name = max(results.items(), key=lambda x: x[1]['metrics']['accuracy'])[0]
-    best_model = results[best_model_name]['model']
-
-    # Optimize best model
-    optimizer = ModelOptimizer(best_model)
-
-    # Apply optimization techniques
-    print("\nOptimizing best model...")
-    pruned_model = optimizer.apply_pruning(
-        (X_train, y_train),
-        (X_test, y_test)
+    """Main execution function"""
+    print("Starting Air Quality Analysis Project")
+    
+    # Create necessary directories
+    create_directories()
+    
+    # Step 1: Data preprocessing
+    print("\n1. Preprocessing data...")
+    data_dict = preprocess_pipeline(DATA_PATH)
+    df = data_dict['df']
+    df_normalized = data_dict['df_normalized']
+    scaler = data_dict['scaler']
+    label_encoder = data_dict['label_encoder']
+    class_data = data_dict['class_data']
+    reg_data = data_dict['reg_data']
+    
+    # Print class distribution
+    print("\nClass distribution before balancing:")
+    class_dist = df['AQ_Category'].value_counts()
+    print(class_dist)
+    
+    # Step 2: Build and train all models
+    print("\n2. Training models...")
+    models, histories = build_and_train_all_models(class_data)
+    
+    # Plot training histories
+    for model_name, history in histories.items():
+        plot_training_history(history, model_name)
+        save_model_summary(models[model_name], model_name)
+    
+    # Step 3: Evaluate all models and find the best one
+    print("\n3. Evaluating models...")
+    best_model_name, best_model, results_df = evaluate_all_models(models, class_data, label_encoder)
+    
+    # Print evaluation results
+    print("\nModel Evaluation Results:")
+    print(results_df)
+    
+    # Step 4: Optimize the best model
+    print(f"\n4. Optimizing best model: {best_model_name}...")
+    optimized_model = optimize_model(best_model, best_model_name, class_data)
+    
+    # Step 5: Evaluate optimized model
+    print("\n5. Evaluating optimized model...")
+    opt_metrics = evaluate_optimized_model(optimized_model, class_data, label_encoder, best_model_name)
+    
+    # Compare original vs optimized model
+    print("\nComparison of Original vs Optimized Model:")
+    original_metrics = results_df[results_df['model_name'] == best_model_name].iloc[0].to_dict()
+    
+    comparison = pd.DataFrame({
+        'Metric': list(original_metrics.keys()),
+        'Original': list(original_metrics.values()),
+        'Optimized': [opt_metrics[k] for k in original_metrics.keys()]
+    })
+    print(comparison)
+    
+    # Save comparison
+    comparison.to_csv(os.path.join(RESULTS_PATH, 'model_comparison.csv'), index=False)
+    
+    # Step 6: Use the optimized model for regression task
+    print("\n6. Training regression model for temperature and humidity prediction...")
+    regression_model, reg_metrics = predict_with_best_model(
+        optimized_model, reg_data, best_model_name
     )
-
-    quantized_model = optimizer.apply_quantization()
-
-    clustered_model = optimizer.apply_clustering(
-        (X_train, y_train),
-        (X_test, y_test)
-    )
-
-    # Evaluate optimized model
-    _, _, optimized_metrics = train_evaluate_model(
-        clustered_model, X_train, X_test, y_train, y_test
-    )
-
-    # Visualize optimization results
-    viz.plot_optimization_comparison(
-        [results[best_model_name]['metrics'][m] for m in ['accuracy', 'precision', 'recall', 'f1']],
-        [optimized_metrics[m] for m in ['accuracy', 'precision', 'recall', 'f1']],
-        ['Accuracy', 'Precision', 'Recall', 'F1-Score']
-    )
-
-    # Train regression model for temp and hum
-    regression_model = model_builder.build_regression_model(X_train.shape[1:], 2)
-    regression_history = regression_model.fit(
-        X_train, df[['temp', 'hum']].values[train_indices],
-        epochs=50,
-        validation_split=0.2,
-        batch_size=32,
-        verbose=1
-    )
-
-    # Evaluate regression results
-    reg_predictions = regression_model.predict(X_test)
-    regression_metrics = {
-        'temp_mse': mean_squared_error(df[['temp']].values[test_indices], reg_predictions[:, 0]),
-        'temp_rmse': np.sqrt(mean_squared_error(df[['temp']].values[test_indices], reg_predictions[:, 0])),
-        'temp_r2': r2_score(df[['temp']].values[test_indices], reg_predictions[:, 0]),
-        'temp_mae': mean_absolute_error(df[['temp']].values[test_indices], reg_predictions[:, 0]),
-        'hum_mse': mean_squared_error(df[['hum']].values[test_indices], reg_predictions[:, 1]),
-        'hum_rmse': np.sqrt(mean_squared_error(df[['hum']].values[test_indices], reg_predictions[:, 1])),
-        'hum_r2': r2_score(df[['hum']].values[test_indices], reg_predictions[:, 1]),
-        'hum_mae': mean_absolute_error(df[['hum']].values[test_indices], reg_predictions[:, 1])
-    }
-
-    print("\nRegression Metrics:")
-    for metric, value in regression_metrics.items():
-        print(f"{metric}: {value:.4f}")
+    
+    print("\nProject completed successfully!")
 
 if __name__ == "__main__":
     main()
