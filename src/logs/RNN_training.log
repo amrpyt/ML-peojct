@@ -1,0 +1,37 @@
+Training metrics for RNN
+--------------------------------------------------
+
+accuracy:
+Epoch 1: 0.8330
+Epoch 2: 0.8647
+Epoch 3: 0.8727
+Epoch 4: 0.8776
+Epoch 5: 0.8805
+
+loss:
+Epoch 1: 0.4586
+Epoch 2: 0.3685
+Epoch 3: 0.3468
+Epoch 4: 0.3336
+Epoch 5: 0.3255
+
+val_accuracy:
+Epoch 1: 0.6947
+Epoch 2: 0.7246
+Epoch 3: 0.7431
+Epoch 4: 0.7605
+Epoch 5: 0.7683
+
+val_loss:
+Epoch 1: 0.7263
+Epoch 2: 0.6492
+Epoch 3: 0.5921
+Epoch 4: 0.5447
+Epoch 5: 0.5432
+
+learning_rate:
+Epoch 1: 0.0010
+Epoch 2: 0.0010
+Epoch 3: 0.0010
+Epoch 4: 0.0010
+Epoch 5: 0.0010

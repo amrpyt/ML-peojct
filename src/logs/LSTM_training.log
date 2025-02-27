@@ -1,0 +1,37 @@
+Training metrics for LSTM
+--------------------------------------------------
+
+accuracy:
+Epoch 1: 0.8112
+Epoch 2: 0.8687
+Epoch 3: 0.8786
+Epoch 4: 0.8845
+Epoch 5: 0.8883
+
+loss:
+Epoch 1: 0.5074
+Epoch 2: 0.3598
+Epoch 3: 0.3312
+Epoch 4: 0.3136
+Epoch 5: 0.3015
+
+val_accuracy:
+Epoch 1: 0.7400
+Epoch 2: 0.7168
+Epoch 3: 0.7693
+Epoch 4: 0.7630
+Epoch 5: 0.7731
+
+val_loss:
+Epoch 1: 0.6453
+Epoch 2: 0.6838
+Epoch 3: 0.5469
+Epoch 4: 0.5374
+Epoch 5: 0.5400
+
+learning_rate:
+Epoch 1: 0.0010
+Epoch 2: 0.0010
+Epoch 3: 0.0010
+Epoch 4: 0.0010
+Epoch 5: 0.0010

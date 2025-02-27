@@ -1,0 +1,37 @@
+Training metrics for CNN-LSTM
+--------------------------------------------------
+
+accuracy:
+Epoch 1: 0.8048
+Epoch 2: 0.8541
+Epoch 3: 0.8633
+Epoch 4: 0.8687
+Epoch 5: 0.8723
+
+loss:
+Epoch 1: 0.5453
+Epoch 2: 0.4077
+Epoch 3: 0.3777
+Epoch 4: 0.3615
+Epoch 5: 0.3504
+
+val_accuracy:
+Epoch 1: 0.6502
+Epoch 2: 0.7312
+Epoch 3: 0.7560
+Epoch 4: 0.7171
+Epoch 5: 0.7285
+
+val_loss:
+Epoch 1: 0.8440
+Epoch 2: 0.6335
+Epoch 3: 0.5830
+Epoch 4: 0.6338
+Epoch 5: 0.6407
+
+learning_rate:
+Epoch 1: 0.0010
+Epoch 2: 0.0010
+Epoch 3: 0.0010
+Epoch 4: 0.0010
+Epoch 5: 0.0010

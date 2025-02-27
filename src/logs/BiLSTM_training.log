@@ -1,0 +1,37 @@
+Training metrics for BiLSTM
+--------------------------------------------------
+
+accuracy:
+Epoch 1: 0.8177
+Epoch 2: 0.8705
+Epoch 3: 0.8805
+Epoch 4: 0.8866
+Epoch 5: 0.8910
+
+loss:
+Epoch 1: 0.4958
+Epoch 2: 0.3560
+Epoch 3: 0.3260
+Epoch 4: 0.3080
+Epoch 5: 0.2940
+
+val_accuracy:
+Epoch 1: 0.7115
+Epoch 2: 0.7920
+Epoch 3: 0.7781
+Epoch 4: 0.7956
+Epoch 5: 0.7822
+
+val_loss:
+Epoch 1: 0.6907
+Epoch 2: 0.5042
+Epoch 3: 0.5358
+Epoch 4: 0.4843
+Epoch 5: 0.4836
+
+learning_rate:
+Epoch 1: 0.0010
+Epoch 2: 0.0010
+Epoch 3: 0.0010
+Epoch 4: 0.0010
+Epoch 5: 0.0010

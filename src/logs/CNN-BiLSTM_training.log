@@ -1,0 +1,37 @@
+Training metrics for CNN-BiLSTM
+--------------------------------------------------
+
+accuracy:
+Epoch 1: 0.8030
+Epoch 2: 0.8518
+Epoch 3: 0.8605
+Epoch 4: 0.8654
+Epoch 5: 0.8687
+
+loss:
+Epoch 1: 0.5510
+Epoch 2: 0.4182
+Epoch 3: 0.3911
+Epoch 4: 0.3746
+Epoch 5: 0.3631
+
+val_accuracy:
+Epoch 1: 0.7067
+Epoch 2: 0.7167
+Epoch 3: 0.7135
+Epoch 4: 0.7306
+Epoch 5: 0.7369
+
+val_loss:
+Epoch 1: 0.7190
+Epoch 2: 0.6799
+Epoch 3: 0.6466
+Epoch 4: 0.6186
+Epoch 5: 0.5975
+
+learning_rate:
+Epoch 1: 0.0010
+Epoch 2: 0.0010
+Epoch 3: 0.0010
+Epoch 4: 0.0010
+Epoch 5: 0.0010

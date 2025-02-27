@@ -1,0 +1,37 @@
+Training metrics for DNN
+--------------------------------------------------
+
+accuracy:
+Epoch 1: 0.8351
+Epoch 2: 0.8636
+Epoch 3: 0.8710
+Epoch 4: 0.8744
+Epoch 5: 0.8773
+
+loss:
+Epoch 1: 0.4471
+Epoch 2: 0.3667
+Epoch 3: 0.3453
+Epoch 4: 0.3344
+Epoch 5: 0.3265
+
+val_accuracy:
+Epoch 1: 0.7125
+Epoch 2: 0.7520
+Epoch 3: 0.7698
+Epoch 4: 0.7919
+Epoch 5: 0.7868
+
+val_loss:
+Epoch 1: 0.6792
+Epoch 2: 0.5902
+Epoch 3: 0.5538
+Epoch 4: 0.5098
+Epoch 5: 0.5012
+
+learning_rate:
+Epoch 1: 0.0010
+Epoch 2: 0.0010
+Epoch 3: 0.0010
+Epoch 4: 0.0010
+Epoch 5: 0.0010
