@@ -98,9 +98,22 @@ def preprocess_classification(df, features, target):
     X_scaled = scaler.fit_transform(X)
     
     print("      Splitting data...")
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
-    )
+    
+    # Check class distribution before splitting
+    class_counts = np.bincount(y)
+    min_class_count = class_counts.min()
+    
+    if min_class_count < 2:
+        # If any class has fewer than 2 samples, don't use stratify
+        print(f"      Warning: Found class with only {min_class_count} sample(s). Disabling stratification.")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
+        )
+    else:
+        # Use stratification for balanced classes
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_scaled, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
+        )
     
     print(f"      Train data shape: {X_train.shape}, Test data shape: {X_test.shape}")
     
