@@ -1,192 +1,190 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler, StandardScaler, LabelEncoder
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, LabelEncoder
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import SMOTE
-import tensorflow as tf
-from config import AQ_CATEGORIES, FEATURES, TARGET_CLASS, REGRESSION_TARGETS, TIMESTAMP_COL
-from utils import categorize_air_quality
-import warnings
+import time
+from config import TEST_SIZE, RANDOM_STATE, AQ_CATEGORIES, FEATURES, TARGET_CLASS
 
-def load_data(filepath):
-    """Load data from CSV file"""
-    df = pd.read_csv(filepath)
-    return df
+def preprocess_data(df, features, target_class, regression_targets=None, timestamp_col=None):
+    """
+    Preprocess the data with progress updates to avoid appearing frozen
+    """
+    print("   - Checking for missing values...")
+    df = handle_missing_values(df)
+    
+    print("   - Handling outliers...")
+    df = handle_outliers(df, features + [target_class] + (regression_targets or []))
+    
+    # Process timestamp if provided
+    if timestamp_col and timestamp_col in df.columns:
+        print("   - Extracting time features...")
+        df = extract_time_features(df, timestamp_col)
+    
+    # Preprocess for classification
+    print("   - Preparing classification data...")
+    class_data = preprocess_classification(df, features, target_class)
+    
+    # Preprocess for regression if targets are provided
+    reg_data = None
+    if regression_targets:
+        print("   - Preparing regression data...")
+        reg_data = preprocess_regression(df, features, regression_targets)
+    
+    return {'classification': class_data, 'regression': reg_data}
 
 def handle_missing_values(df):
     """Handle missing values in the dataframe"""
-    # Check for missing values
-    missing_values = df.isnull().sum()
+    na_count = df.isna().sum()
+    if na_count.sum() > 0:
+        print(f"      Found {na_count.sum()} missing values")
     
-    # For numeric columns, fill missing values with the median
-    numeric_cols = df.select_dtypes(include=np.number).columns
-    for col in numeric_cols:
-        if df[col].isnull().sum() > 0:
+    # For numeric columns, fill with median
+    for col in df.select_dtypes(include=['number']).columns:
+        if df[col].isna().sum() > 0:
             df[col] = df[col].fillna(df[col].median())
     
-    # For non-numeric columns, fill missing values with the mode
-    non_numeric_cols = df.select_dtypes(exclude=np.number).columns
-    for col in non_numeric_cols:
-        if df[col].isnull().sum() > 0:
+    # For categorical columns, fill with mode
+    for col in df.select_dtypes(include=['object']).columns:
+        if df[col].isna().sum() > 0:
             df[col] = df[col].fillna(df[col].mode()[0])
-    
+            
     return df
 
-def handle_outliers(df):
-    """Handle outliers using IQR method and replace with median/mean"""
-    numeric_cols = df.select_dtypes(include=np.number).columns
-    
-    for col in numeric_cols:
-        # Calculate IQR
-        Q1 = df[col].quantile(0.25)
-        Q3 = df[col].quantile(0.75)
-        IQR = Q3 - Q1
+def handle_outliers(df, columns):
+    """Handle outliers using IQR method"""
+    for col in columns:
+        if col in df.columns and pd.api.types.is_numeric_dtype(df[col]):
+            Q1 = df[col].quantile(0.25)
+            Q3 = df[col].quantile(0.75)
+            IQR = Q3 - Q1
+            
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            
+            # Replace outliers with median instead of removing
+            median_val = df[col].median()
+            df.loc[df[col] < lower_bound, col] = median_val
+            df.loc[df[col] > upper_bound, col] = median_val
+            
+    return df
+
+def extract_time_features(df, timestamp_col):
+    """Extract features from timestamp column"""
+    try:
+        df['datetime'] = pd.to_datetime(df[timestamp_col])
+        df['hour'] = df['datetime'].dt.hour
+        df['day'] = df['datetime'].dt.day
+        df['month'] = df['datetime'].dt.month
+        df['dayofweek'] = df['datetime'].dt.dayofweek
         
-        # Define bounds
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
+        # Drop original datetime column
+        df = df.drop(['datetime'], axis=1)
         
-        # Replace outliers with median
-        df[col] = df[col].apply(lambda x: df[col].median() if (x < lower_bound or x > upper_bound) else x)
-    
+    except Exception as e:
+        print(f"      Warning: Error processing timestamp: {e}")
+        
     return df
 
-def normalize_data(df, method='minmax'):
-    """Normalize the data using specified method"""
-    # Create a copy to avoid modifying the original dataframe
-    df_normalized = df.copy()
+def preprocess_classification(df, features, target):
+    """Preprocess data for classification task with progress updates"""
+    print("      Encoding target variable...")
+    le = LabelEncoder()
+    y = le.fit_transform(df[target])
     
-    # Select only numeric columns
-    numeric_cols = df.select_dtypes(include=np.number).columns
+    print("      Normalizing features...")
+    X = df[features].copy()
+    scaler = MinMaxScaler()
+    X_scaled = scaler.fit_transform(X)
     
-    if method == 'minmax':
-        scaler = MinMaxScaler()
-    elif method == 'standard':
-        scaler = StandardScaler()
-    else:
-        raise ValueError("Method should be either 'minmax' or 'standard'")
-    
-    # Normalize numeric columns
-    df_normalized[numeric_cols] = scaler.fit_transform(df[numeric_cols])
-    
-    return df_normalized, scaler
-
-def process_timestamps(df):
-    """Process timestamp column to extract features"""
-    if TIMESTAMP_COL in df.columns:
-        df[TIMESTAMP_COL] = pd.to_datetime(df[TIMESTAMP_COL], errors='coerce')
-        df['hour'] = df[TIMESTAMP_COL].dt.hour
-        df['day'] = df[TIMESTAMP_COL].dt.day
-        df['month'] = df[TIMESTAMP_COL].dt.month
-        df['day_of_week'] = df[TIMESTAMP_COL].dt.dayofweek
-    
-    return df
-
-def encode_target(df):
-    """Encode the target variable for classification"""
-    # Apply categorization function to Air Quality column
-    df['AQ_Category'] = df[TARGET_CLASS].apply(categorize_air_quality)
-    
-    # Encode categories
-    label_encoder = LabelEncoder()
-    df['AQ_Category_Encoded'] = label_encoder.fit_transform(df['AQ_Category'])
-    
-    return df, label_encoder
-
-def prepare_data_for_deep_learning(df, test_size=0.2, random_state=42, use_smote=True):
-    """Prepare data for deep learning models"""
-    # Select features and target
-    X = df[FEATURES].values
-    y_class = df['AQ_Category_Encoded'].values
-    
-    # Split the data
+    print("      Splitting data...")
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y_class, test_size=test_size, random_state=random_state, stratify=y_class
+        X_scaled, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )
     
-    # Apply SMOTE for balancing classes
-    if use_smote:
-        smote = SMOTE(random_state=random_state)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            X_train, y_train = smote.fit_resample(X_train, y_train)
+    print(f"      Train data shape: {X_train.shape}, Test data shape: {X_test.shape}")
     
-    # Prepare data for regression tasks
-    X_reg = df[FEATURES].values
-    y_temp = df['Temp'].values
-    y_hum = df['Hum'].values
+    # Balance classes using SMOTE - this can be slow for large datasets
+    try:
+        print("      Balancing classes with SMOTE (this may take a moment)...")
+        start_time = time.time()
+        smote = SMOTE(random_state=RANDOM_STATE)
+        X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
+        print(f"      SMOTE completed in {time.time() - start_time:.2f} seconds")
+    except Exception as e:
+        print(f"      Warning: SMOTE failed, using original data: {e}")
+        X_train_balanced, y_train_balanced = X_train, y_train
     
-    X_train_reg, X_test_reg, y_temp_train, y_temp_test, y_hum_train, y_hum_test = train_test_split(
-        X_reg, y_temp, y_hum, test_size=test_size, random_state=random_state
-    )
+    print("      One-hot encoding targets...")
+    encoder = OneHotEncoder(sparse_output=False)
+    y_train_cat = encoder.fit_transform(y_train_balanced.reshape(-1, 1))
+    y_test_cat = encoder.transform(y_test.reshape(-1, 1))
     
-    # Reshape for sequence models (RNN, LSTM)
-    X_train_seq = X_train.reshape(X_train.shape[0], 1, X_train.shape[1])
-    X_test_seq = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
+    print("      Creating sequences for CNN/RNN models...")
+    window_size = 3  # Smaller window to avoid memory issues
+    X_train_seq = create_sequences(X_train_balanced, window_size)
+    X_test_seq = create_sequences(X_test, window_size)
     
-    X_train_reg_seq = X_train_reg.reshape(X_train_reg.shape[0], 1, X_train_reg.shape[1])
-    X_test_reg_seq = X_test_reg.reshape(X_test_reg.shape[0], 1, X_test_reg.shape[1])
-    
-    # Get number of classes
-    n_classes = len(np.unique(y_train))
-    
-    # Convert targets to categorical for classification
-    y_train_cat = tf.keras.utils.to_categorical(y_train, n_classes)
-    y_test_cat = tf.keras.utils.to_categorical(y_test, n_classes)
-    
-    class_data = {
-        'X_train': X_train,
+    print("      Classification preprocessing complete.")
+    return {
+        'X_train': X_train_balanced,
         'X_test': X_test,
-        'y_train': y_train,
+        'y_train': y_train_balanced,
         'y_test': y_test,
         'y_train_cat': y_train_cat,
         'y_test_cat': y_test_cat,
         'X_train_seq': X_train_seq,
         'X_test_seq': X_test_seq,
-        'n_classes': n_classes
-    }
-    
-    reg_data = {
-        'X_train_reg': X_train_reg,
-        'X_test_reg': X_test_reg,
-        'y_temp_train': y_temp_train,
-        'y_temp_test': y_temp_test,
-        'y_hum_train': y_hum_train,
-        'y_hum_test': y_hum_test,
-        'X_train_reg_seq': X_train_reg_seq,
-        'X_test_reg_seq': X_test_reg_seq
-    }
-    
-    return class_data, reg_data
-
-def preprocess_pipeline(filepath):
-    """Complete preprocessing pipeline"""
-    # Load data
-    df = load_data(filepath)
-    
-    # Handle missing values
-    df = handle_missing_values(df)
-    
-    # Handle outliers
-    df = handle_outliers(df)
-    
-    # Process timestamps
-    df = process_timestamps(df)
-    
-    # Encode target
-    df, label_encoder = encode_target(df)
-    
-    # Normalize data
-    df_normalized, scaler = normalize_data(df)
-    
-    # Prepare data for deep learning
-    class_data, reg_data = prepare_data_for_deep_learning(df_normalized)
-    
-    return {
-        'df': df,
-        'df_normalized': df_normalized,
         'scaler': scaler,
-        'label_encoder': label_encoder,
-        'class_data': class_data,
-        'reg_data': reg_data
+        'encoder': encoder,
+        'label_encoder': le,
+        'n_classes': len(np.unique(y)),
+        'class_names': le.classes_
     }
+
+def preprocess_regression(df, features, targets):
+    """Preprocess data for regression task"""
+    X = df[features].copy()
+    scaler_X = MinMaxScaler()
+    X_scaled = scaler_X.fit_transform(X)
+    
+    y_temp = df[targets[0]].values.reshape(-1, 1)
+    y_hum = df[targets[1]].values.reshape(-1, 1)
+    
+    scaler_temp = MinMaxScaler()
+    scaler_hum = MinMaxScaler()
+    y_temp_scaled = scaler_temp.fit_transform(y_temp).flatten()
+    y_hum_scaled = scaler_hum.fit_transform(y_hum).flatten()
+    
+    X_train, X_test, y_train_temp, y_test_temp, y_train_hum, y_test_hum = train_test_split(
+        X_scaled, y_temp_scaled, y_hum_scaled, test_size=TEST_SIZE, random_state=RANDOM_STATE
+    )
+    
+    print("      Regression preprocessing complete.")
+    return {
+        'X_train': X_train,
+        'X_test': X_test,
+        'y_train_temp': y_train_temp,
+        'y_test_temp': y_test_temp,
+        'y_train_hum': y_train_hum,
+        'y_test_hum': y_test_hum,
+        'scaler_X': scaler_X,
+        'scaler_temp': scaler_temp,
+        'scaler_hum': scaler_hum
+    }
+
+def create_sequences(data, window_size):
+    """Create sequences for sequential models"""
+    # If data is too small, use simpler approach
+    if len(data) < 1000:
+        # Reshape data to [samples, timesteps=1, features]
+        return np.expand_dims(data, axis=1)
+    
+    # For larger datasets, use a memory-efficient approach
+    sequences = []
+    step = max(1, len(data) // 1000)  # Take fewer sequences for very large datasets
+    
+    for i in range(0, len(data) - window_size + 1, step):
+        sequences.append(data[i:i+window_size])
+    
+    return np.array(sequences)
