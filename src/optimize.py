@@ -1,190 +1,10 @@
 import tensorflow as tf
-import tensorflow_model_optimization as tfmot
 import numpy as np
 import tempfile
 import os
-from tensorflow.keras.models import load_model, clone_model
-from tensorflow.keras.layers import Dense
+from tensorflow.python.keras.models import load_model, clone_model
+from tensorflow.python.keras.layers import Dense
 from config import MODEL_SAVE_PATH, PRUNING_PARAMS, QUANTIZATION_PARAMS
-
-def apply_pruning(model, X_train, y_train, X_val=None, y_val=None, model_name='pruned_model', epochs=50, batch_size=32):
-    """Apply weight pruning to reduce model size"""
-    print("Applying pruning...")
-    
-    # Clone the model to avoid modifying the original
-    pruning_model = clone_model(model)
-    pruning_model.set_weights(model.get_weights())
-    
-    # Compile the model with the same optimizer and loss
-    pruning_model.compile(
-        optimizer=model.optimizer,
-        loss=model.loss,
-        metrics=['accuracy']
-    )
-    
-    # Define pruning schedule
-    pruning_params = {
-        'pruning_schedule': tfmot.sparsity.keras.PolynomialDecay(
-            initial_sparsity=PRUNING_PARAMS['initial_sparsity'],
-            final_sparsity=PRUNING_PARAMS['final_sparsity'],
-            begin_step=PRUNING_PARAMS['begin_step'],
-            end_step=PRUNING_PARAMS['end_step']
-        )
-    }
-    
-    # Apply pruning to the model
-    pruned_model = tfmot.sparsity.keras.prune_low_magnitude(pruning_model, **pruning_params)
-    
-    # Compile the pruned model
-    pruned_model.compile(
-        optimizer=model.optimizer,
-        loss=model.loss,
-        metrics=['accuracy']
-    )
-    
-    # Create pruning callbacks
-    callbacks = [
-        tfmot.sparsity.keras.UpdatePruningStep(),
-        tfmot.sparsity.keras.PruningSummaries(log_dir=f"{MODEL_SAVE_PATH}/pruning_logs"),
-        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-    ]
-    
-    # Train the pruned model
-    if X_val is None or y_val is None:
-        history = pruned_model.fit(
-            X_train, y_train,
-            epochs=epochs,
-            batch_size=batch_size,
-            validation_split=0.2,
-            callbacks=callbacks
-        )
-    else:
-        history = pruned_model.fit(
-            X_train, y_train,
-            epochs=epochs,
-            batch_size=batch_size,
-            validation_data=(X_val, y_val),
-            callbacks=callbacks
-        )
-    
-    # Remove pruning wrappers for deployment
-    final_model = tfmot.sparsity.keras.strip_pruning(pruned_model)
-    
-    # Save the model
-    final_model.save(os.path.join(MODEL_SAVE_PATH, f"{model_name}.h5"))
-    
-    return final_model, history
-
-def apply_quantization(model, model_name='quantized_model', is_post_training=True):
-    """Apply quantization to reduce model size"""
-    print("Applying quantization...")
-    
-    if is_post_training:
-        # Apply post-training quantization
-        converter = tf.lite.TFLiteConverter.from_keras_model(model)
-        converter.optimizations = [tf.lite.Optimize.DEFAULT]
-        
-        # Apply additional optimizations
-        if QUANTIZATION_PARAMS['quantize_input']:
-            converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-            converter.representative_dataset = _get_representative_dataset
-            if QUANTIZATION_PARAMS['quantize_output']:
-                converter.inference_input_type = tf.int8
-                converter.inference_output_type = tf.int8
-        
-        # Convert the model
-        quantized_model = converter.convert()
-        
-        # Save the model
-        with open(os.path.join(MODEL_SAVE_PATH, f"{model_name}.tflite"), 'wb') as f:
-            f.write(quantized_model)
-        
-        return quantized_model
-    else:
-        # Apply quantization-aware training
-        # Clone the model
-        quantized_model = clone_model(model)
-        quantized_model.set_weights(model.get_weights())
-        
-        # Apply quantization-aware training
-        quant_aware_model = tfmot.quantization.keras.quantize_model(quantized_model)
-        
-        # Compile the model
-        quant_aware_model.compile(
-            optimizer=model.optimizer,
-            loss=model.loss,
-            metrics=['accuracy']
-        )
-        
-        return quant_aware_model
-
-def _get_representative_dataset():
-    """Generate representative dataset for quantization"""
-    # This is a placeholder function
-    # In a real implementation, you would provide real data
-    def generator():
-        for _ in range(100):
-            # Generate random data that matches your model's input shape
-            yield [np.random.random((1, 7)).astype(np.float32)]
-    return generator
-
-def apply_clustering(model, X_train, y_train, X_val=None, y_val=None, model_name='clustered_model', epochs=50, batch_size=32):
-    """Apply weight clustering to reduce model size"""
-    print("Applying clustering...")
-    
-    # Define clustering parameters
-    clustering_params = {
-        'number_of_clusters': 16,
-        'cluster_centroids_init': tfmot.clustering.keras.CentroidInitialization.KMEANS_PLUS_PLUS
-    }
-    
-    # Apply clustering to the model
-    clustered_model = tfmot.clustering.keras.cluster_weights(
-        clone_model(model),
-        **clustering_params
-    )
-    
-    # Copy original model weights to the clustered model
-    clustered_model.set_weights(model.get_weights())
-    
-    # Compile the model
-    clustered_model.compile(
-        optimizer=model.optimizer,
-        loss=model.loss,
-        metrics=['accuracy']
-    )
-    
-    # Create clustering callbacks
-    callbacks = [
-        tfmot.clustering.keras.ClusteringSummaries(log_dir=f"{MODEL_SAVE_PATH}/clustering_logs"),
-        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-    ]
-    
-    # Train the clustered model
-    if X_val is None or y_val is None:
-        history = clustered_model.fit(
-            X_train, y_train,
-            epochs=epochs,
-            batch_size=batch_size,
-            validation_split=0.2,
-            callbacks=callbacks
-        )
-    else:
-        history = clustered_model.fit(
-            X_train, y_train,
-            epochs=epochs,
-            batch_size=batch_size,
-            validation_data=(X_val, y_val),
-            callbacks=callbacks
-        )
-    
-    # Strip clustering for deployment
-    final_model = tfmot.clustering.keras.strip_clustering(clustered_model)
-    
-    # Save the model
-    final_model.save(os.path.join(MODEL_SAVE_PATH, f"{model_name}.h5"))
-    
-    return final_model, history
 
 def apply_weight_clipping(model, clip_value=0.01, model_name='weight_clipped_model'):
     """Apply weight clipping to improve model stability"""
@@ -284,7 +104,7 @@ def apply_knowledge_distillation(teacher_model, X_train, y_train, X_val=None, y_
     return student_model, history
 
 def optimize_model(best_model, best_model_name, class_data):
-    """Apply multiple optimization techniques to the best model"""
+    """Apply optimization techniques to the best model"""
     print(f"Optimizing model: {best_model_name}")
     
     # Prepare data based on model type
@@ -298,42 +118,19 @@ def optimize_model(best_model, best_model_name, class_data):
     y_train = class_data['y_train_cat']
     y_test = class_data['y_test_cat']
     
-    # First, apply pruning to reduce model size
-    pruned_model, _ = apply_pruning(
-        best_model, 
-        X_train, 
-        y_train,
-        model_name=f"{best_model_name}_pruned"
-    )
-    
-    # Next, apply clustering for further compression
-    clustered_model, _ = apply_clustering(
-        pruned_model,
-        X_train,
-        y_train,
-        model_name=f"{best_model_name}_pruned_clustered"
-    )
-    
-    # Apply weight clipping for stability
+    # Apply weight clipping for stability - this doesn't require TFMOT
     clipped_model = apply_weight_clipping(
-        clustered_model,
-        model_name=f"{best_model_name}_pruned_clustered_clipped"
+        best_model,
+        model_name=f"{best_model_name}_clipped"
     )
     
-    # Apply quantization as the final step
-    quantized_model = apply_quantization(
-        clipped_model,
-        model_name=f"{best_model_name}_pruned_clustered_clipped_quantized"
-    )
-    
-    # Optional: Apply knowledge distillation
-    # This creates a smaller model guided by the optimized model
+    # Optional: Apply knowledge distillation - this doesn't require TFMOT
     distilled_model, _ = apply_knowledge_distillation(
-        clipped_model,  # Use pre-quantized model as teacher
+        clipped_model,
         X_train,
         y_train,
         model_name=f"{best_model_name}_distilled"
     )
     
     # Return the optimized model
-    return clipped_model  # Return the pre-quantized model for evaluation
+    return clipped_model
